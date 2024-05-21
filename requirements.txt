@@ -1,4 +1,5 @@
 streamlit
+gunicorn
 google-generativeai
 python-dotenv
 langchain
