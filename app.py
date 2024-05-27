@@ -24,8 +24,6 @@ def get_pdf_text(pdf_docs):
             text+= page.extract_text()
     return  text
 
-
-
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
@@ -57,8 +55,6 @@ def get_conversational_chain():
 
     return chain
 
-
-
 def user_input(user_question):
     embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
     # Set allow_dangerous_deserialization to True
@@ -67,16 +63,10 @@ def user_input(user_question):
 
     chain = get_conversational_chain()
 
-    
-    response = chain(
-        {"input_documents":docs, "question": user_question}
-        , return_only_outputs=True)
+    response = chain.invoke({"input_documents": docs, "question": user_question}, return_only_outputs=True)
 
     print(response)
     st.write("Reply: ", response["output_text"])
-
-
-
 
 def main():
     st.set_page_config("Chat PDF")
@@ -96,8 +86,6 @@ def main():
                 text_chunks = get_text_chunks(raw_text)
                 get_vector_store(text_chunks)
                 st.success("Done")
-
-
 
 if __name__ == "__main__":
     main()
