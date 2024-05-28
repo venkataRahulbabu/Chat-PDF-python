@@ -17,29 +17,24 @@ os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 def get_pdf_text(pdf_docs):
-    text=""
+    text = ""
     for pdf in pdf_docs:
-        pdf_reader= PdfReader(pdf)
+        pdf_reader = PdfReader(pdf)
         for page in pdf_reader.pages:
-            text+= page.extract_text()
-    return  text
-
-
+            text += page.extract_text()
+    return text
 
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
     return chunks
 
-
 def get_vector_store(text_chunks):
-    embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
     vector_store.save_local("faiss_index")
 
-
 def get_conversational_chain():
-
     prompt_template = """
     Answer the question as detailed as possible from the provided context, make sure to provide all the details, if the answer is not in
     provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
@@ -49,58 +44,52 @@ def get_conversational_chain():
     Answer:
     """
 
-    model = ChatGoogleGenerativeAI(model="gemini-pro",
-                             temperature=0.3)
-
-    prompt = PromptTemplate(template = prompt_template, input_variables = ["context", "question"])
+    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3)
+    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
-
     return chain
 
-
-
 def user_input(user_question):
-    embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
-    # Set allow_dangerous_deserialization to True
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
-
     chain = get_conversational_chain()
 
     response = chain.invoke({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-
-    print(response)
-    st.write("Reply: ", response["output_text"])
-
-
-
+    return response["output_text"]
 
 def main():
     st.set_page_config("Chat PDF", layout="wide")
     st.header("Chat with PDF using Gemini💁")
 
-    user_question = st.text_input("Ask a Question from the PDF Files")
-
-    if user_question:
-        user_input(user_question)
-
-    # Placeholder for the error message
-    error_message_placeholder = st.empty()
+    if "conversation" not in st.session_state:
+        st.session_state.conversation = []
 
     with st.sidebar:
         st.title("Menu:")
         pdf_docs = st.file_uploader("Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
         if st.button("Submit & Process"):
             if pdf_docs:
-                error_message_placeholder.empty()  # Clear any previous error messages
                 with st.spinner("Processing..."):
                     raw_text = get_pdf_text(pdf_docs)
                     text_chunks = get_text_chunks(raw_text)
                     get_vector_store(text_chunks)
                     st.success("Done")
             else:
-                error_message_placeholder.error("Please upload at least one PDF file.")
+                st.error("Please upload at least one PDF file.")
 
+    for i, (question, answer) in enumerate(st.session_state.conversation):
+        st.write(f"**Question {i+1}:** {question}")
+        st.write(f"**Answer {i+1}:** {answer}")
+        st.write("---")
+
+    new_question = st.text_input("Your new question:", key=f"question_{len(st.session_state.conversation)}")
+
+    if st.button("Submit Query"):
+        if new_question:
+            answer = user_input(new_question)
+            st.session_state.conversation.append((new_question, answer))
+            st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
