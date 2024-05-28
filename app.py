@@ -24,6 +24,8 @@ def get_pdf_text(pdf_docs):
             text+= page.extract_text()
     return  text
 
+
+
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
     chunks = text_splitter.split_text(text)
@@ -55,6 +57,8 @@ def get_conversational_chain():
 
     return chain
 
+
+
 def user_input(user_question):
     embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
     # Set allow_dangerous_deserialization to True
@@ -68,8 +72,11 @@ def user_input(user_question):
     print(response)
     st.write("Reply: ", response["output_text"])
 
+
+
+
 def main():
-    st.set_page_config("Chat PDF")
+    st.set_page_config("Chat PDF", layout="wide")
     st.header("Chat with PDF using Gemini💁")
 
     user_question = st.text_input("Ask a Question from the PDF Files")
@@ -77,15 +84,23 @@ def main():
     if user_question:
         user_input(user_question)
 
+    # Placeholder for the error message
+    error_message_placeholder = st.empty()
+
     with st.sidebar:
         st.title("Menu:")
         pdf_docs = st.file_uploader("Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
         if st.button("Submit & Process"):
-            with st.spinner("Processing..."):
-                raw_text = get_pdf_text(pdf_docs)
-                text_chunks = get_text_chunks(raw_text)
-                get_vector_store(text_chunks)
-                st.success("Done")
+            if pdf_docs:
+                error_message_placeholder.empty()  # Clear any previous error messages
+                with st.spinner("Processing..."):
+                    raw_text = get_pdf_text(pdf_docs)
+                    text_chunks = get_text_chunks(raw_text)
+                    get_vector_store(text_chunks)
+                    st.success("Done")
+            else:
+                error_message_placeholder.error("Please upload at least one PDF file.")
+
 
 if __name__ == "__main__":
     main()
