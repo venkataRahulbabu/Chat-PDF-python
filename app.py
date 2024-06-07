@@ -9,7 +9,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores.faiss import FAISS
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,10 +35,9 @@ def get_vector_store(text_chunks):
 
 def get_conversational_chain():
     prompt_template = """
-    Answer the question as detailed as possible from the provided context, make sure to provide all the details, if the answer is not in
-    provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
-    Context:\n {context}?\n
-    Question: \n{question}\n
+    Answer the question as detailed as possible from the provided context. If the question is not based on the context or is a general comment, handle it appropriately.\n\n
+    Context:\n{context}\n
+    Question:\n{question}\n
 
     Answer:
     """
@@ -49,7 +47,14 @@ def get_conversational_chain():
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
     return chain
 
+def is_general_comment(user_question):
+    general_comments = ["well done", "thank you", "thanks", "good job", "great", "nice", "awesome"]
+    return any(comment in user_question.lower() for comment in general_comments)
+
 def user_input(user_question):
+    if is_general_comment(user_question):
+        return "You're welcome! I'm here to help you with any questions you have."
+
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
@@ -60,7 +65,7 @@ def user_input(user_question):
 
 def main():
     st.set_page_config("Chat PDF", layout="wide")
-    st.header("Chat with PDF using Gemini💁")
+    st.header("Chat with PDF")
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = []
@@ -78,10 +83,34 @@ def main():
             else:
                 st.error("Please upload at least one PDF file.")
 
+    # Custom CSS for chat styling
+    st.markdown("""
+        <style>
+            .chat-container {
+                display: flex;
+                flex-direction: column;
+            }
+            .user-message, .model-response {
+                padding: 10px;
+                border-radius: 10px;
+                margin-bottom: 10px;
+                max-width: 60%;
+            }
+            .user-message {
+                align-self: flex-end;
+                background-color: #DCF8C6;
+                font-weight: 600;
+            }
+            .model-response {
+                align-self: flex-start;
+                background-color: #F1F0F0;
+                font-weight: normal;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     for i, (question, answer) in enumerate(st.session_state.conversation):
-        st.write(f"**Question {i+1}:** {question}")
-        st.write(f"**Answer {i+1}:** {answer}")
-        st.write("---")
+        st.markdown(f'<div class="chat-container"><div class="user-message">YOU: {question}</div><div class="model-response">MODEL: {answer}</div></div>', unsafe_allow_html=True)
 
     new_question = st.text_input("Your new question:", key=f"question_{len(st.session_state.conversation)}")
 
