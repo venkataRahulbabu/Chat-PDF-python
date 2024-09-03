@@ -118,7 +118,7 @@ def main():
         if new_question:
             answer = user_input(new_question)
             st.session_state.conversation.append((new_question, answer))
-            st.experimental_rerun()
+            st.rerun()
 
 if __name__ == "__main__":
     main()
